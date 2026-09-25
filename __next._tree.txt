@@ -1,0 +1,2 @@
+:HL["/minecore-os/_next/static/chunks/0xn8-o1277yei.css","style"]
+0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}},"staleTime":300,"buildId":"JGX_csNq5dheS6MC57QsQ"}
