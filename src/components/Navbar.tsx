@@ -11,9 +11,7 @@ import {
   Flame,
   FileText,
   AlertOctagon,
-  CheckCircle,
   RefreshCw,
-  Zap,
 } from "lucide-react";
 
 export const Navbar: React.FC = () => {
@@ -21,11 +19,18 @@ export const Navbar: React.FC = () => {
   const { kpis, isPitHalted, togglePitEmergencyHalt, resetToDefaults } = useMine();
 
   const navItems = [
-    { label: "Fleet Dispatch", href: "/", icon: Truck },
-    { label: "Stockpile & Blending", href: "/stockpile/", icon: Layers },
-    { label: "Drill & Blast", href: "/blast/", icon: Flame, badge: "Sprint 3" },
-    { label: "Minerba COA A4", href: "/assay/", icon: FileText, badge: "Sprint 3" },
+    { label: "Fleet Dispatch", href: "/" },
+    { label: "Stockpile & Blending", href: "/stockpile/" },
+    { label: "Drill & Blast", href: "/blast/" },
+    { label: "Minerba COA A4", href: "/assay/" },
   ];
+
+  const icons: Record<string, React.ReactNode> = {
+    "/": <Truck className="w-4 h-4" />,
+    "/stockpile/": <Layers className="w-4 h-4" />,
+    "/blast/": <Flame className="w-4 h-4" />,
+    "/assay/": <FileText className="w-4 h-4" />,
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full bg-slate-950/90 backdrop-blur-md border-b border-amber-900/40 text-slate-100">
@@ -97,7 +102,6 @@ export const Navbar: React.FC = () => {
 
         <nav className="flex items-center gap-1 sm:gap-2">
           {navItems.map((item) => {
-            const Icon = item.icon;
             const isActive = pathname === item.href;
             return (
               <Link
@@ -109,13 +113,10 @@ export const Navbar: React.FC = () => {
                     : "text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent"
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? "text-amber-400" : "text-slate-400"}`} />
+                <span className={`${isActive ? "text-amber-400" : "text-slate-400"}`}>
+                  {icons[item.href]}
+                </span>
                 <span>{item.label}</span>
-                {item.badge && (
-                  <span className="text-[9px] px-1.5 py-0.2 font-mono bg-slate-800 text-slate-400 rounded border border-slate-700">
-                    {item.badge}
-                  </span>
-                )}
               </Link>
             );
           })}

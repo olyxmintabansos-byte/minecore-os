@@ -7,6 +7,9 @@ import {
   StockpileDome,
   MiningKPIs,
   DumpDestination,
+  BlastHole,
+  BlastPatternConfig,
+  MinerbaCoaCertificate,
 } from "@/types/mine";
 
 const INITIAL_TRUCKS: HaulTruck[] = [
@@ -212,16 +215,74 @@ const INITIAL_STOCKPILES: StockpileDome[] = [
   },
 ];
 
+const INITIAL_BLAST_CONFIG: BlastPatternConfig = {
+  patternId: "PAT-NORTH-B12-04",
+  benchLocation: "North Pit Bench RL -120m (Saprolite Block 4)",
+  totalHoles: 24,
+  powderFactorKgPerBcm: 0.44,
+  bulkExplosiveType: "Heavy Emulsion 70/30 Bulk Blend (1.18 g/cc)",
+  estimatedVolumeBcm: 32600,
+  vibrationPpvLimitMmSec: 5.0,
+  calculatedPpvMmSec: 2.84,
+  airblastDbLimit: 120.0,
+  calculatedAirblastDb: 108.5,
+  isBlasted: false,
+};
+
+const INITIAL_HOLES: BlastHole[] = Array.from({ length: 24 }, (_, idx) => ({
+  holeId: `H-${(idx + 1).toString().padStart(2, "0")}`,
+  depthM: 11.5,
+  burdenM: 4.5,
+  spacingM: 5.5,
+  stemmingM: 3.2,
+  explosiveKg: 148,
+  isFired: false,
+  delayMs: idx * 25,
+}));
+
+const INITIAL_MINERBA_COA: MinerbaCoaCertificate = {
+  certificateNo: "COA/SUCOFINDO/MRW/2026/09/8821",
+  esdmPermitIupNo: "IUP-OP/ESDM/540/019/MINERBA/2022",
+  concessionName: "PT BUMI MOROWALI MINERAL - BLOCK BAHODOPI",
+  surveyorCompany: "PT SUCOFINDO (PERSERO) INDEPENDENT SURVEYOR",
+  lotNumber: "LOT-SAP-2026-0925-A",
+  vesselBargeName: "TK. PACIFIC ORE 3008 / TB. MEGA JAYA 01",
+  samplingDate: "25 SEPTEMBER 2026",
+  totalWetMetricTons: 10500,
+  moistureContentPct: 33.2,
+  totalDryMetricTons: 7014,
+  assayNiPct: 1.82,
+  assayFePct: 16.4,
+  assayCoPct: 0.04,
+  assaySio2Pct: 41.8,
+  assayMgoPct: 21.2,
+  silicaMagnesiaRatio: 1.97,
+  hpmNickelUsdPerDmt: 42.85,
+  grossOreValueUsd: 300550,
+  pnbpRoyaltyRatePct: 10.0,
+  pnbpRoyaltyPayableIdr: 465852500,
+  chiefSurveyorName: "Ir. Ahmad Fauzi, ST (Sucofindo Lead Assayer)",
+  kttMiningManagerName: "Rudi Hartono, ST (Kepala Teknik Tambang KTT)",
+  buyerInspectorName: "Lin Wei, B.Eng (Smelter RKEF Receiving Metallurgist)",
+  qrVerificationHash: "ESDM-MINERBA-MRW-9981-FA20",
+};
+
 interface MineContextType {
   trucks: HaulTruck[];
   shovels: HydraulicShovel[];
   stockpiles: StockpileDome[];
   kpis: MiningKPIs;
   isPitHalted: boolean;
+  blastConfig: BlastPatternConfig;
+  blastHoles: BlastHole[];
+  minerbaCoa: MinerbaCoaCertificate;
   reassignDestination: (truckId: string, dest: DumpDestination) => void;
   toggleTruckMaintenance: (truckId: string) => void;
   updateStockpileBlend: (domeId: string, newPct: number) => void;
   togglePitEmergencyHalt: () => void;
+  fireBlastSequence: () => void;
+  resetBlastPattern: () => void;
+  updateCoaParameters: (wetTons: number, niPct: number, mcPct: number, hpmUsd: number) => void;
   resetToDefaults: () => void;
 }
 
@@ -232,34 +293,36 @@ export const MineProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [shovels] = useState<HydraulicShovel[]>(INITIAL_SHOVELS);
   const [stockpiles, setStockpiles] = useState<StockpileDome[]>(INITIAL_STOCKPILES);
   const [isPitHalted, setIsPitHalted] = useState<boolean>(false);
+  const [blastConfig, setBlastConfig] = useState<BlastPatternConfig>(INITIAL_BLAST_CONFIG);
+  const [blastHoles, setBlastHoles] = useState<BlastHole[]>(INITIAL_HOLES);
+  const [minerbaCoa, setMinerbaCoa] = useState<MinerbaCoaCertificate>(INITIAL_MINERBA_COA);
 
-  // Sync from LocalStorage
   useEffect(() => {
     try {
       const savedTrucks = localStorage.getItem("mine_trucks_v1");
       const savedDomes = localStorage.getItem("mine_domes_v1");
+      const savedCoa = localStorage.getItem("mine_coa_v1");
       if (savedTrucks) setTrucks(JSON.parse(savedTrucks));
       if (savedDomes) setStockpiles(JSON.parse(savedDomes));
+      if (savedCoa) setMinerbaCoa(JSON.parse(savedCoa));
     } catch {
       console.warn("Storage fallback");
     }
   }, []);
 
-  // Save to LocalStorage
   useEffect(() => {
     localStorage.setItem("mine_trucks_v1", JSON.stringify(trucks));
     localStorage.setItem("mine_domes_v1", JSON.stringify(stockpiles));
-  }, [trucks, stockpiles]);
+    localStorage.setItem("mine_coa_v1", JSON.stringify(minerbaCoa));
+  }, [trucks, stockpiles, minerbaCoa]);
 
-  // Recalculate KPIs
   const activeTrucks = isPitHalted ? [] : trucks.filter((t) => t.status !== "MAINTENANCE_BAY");
   const totalDailyOre = activeTrucks.reduce((acc, t) => acc + (t.totalTripsToday * t.maxCapacityTons * 0.95), 0);
-  const totalDailyWaste = Math.round(totalDailyOre * 3.4); // 3.4 BCM per Ore Ton
+  const totalDailyWaste = Math.round(totalDailyOre * 3.4);
   const instantSR = 3.4;
   const crusherTph = isPitHalted ? 0 : 2850 + activeTrucks.length * 120;
   const totalFuel = activeTrucks.reduce((acc, t) => acc + t.fuelBurnLph, 0);
 
-  // Calculate composite blended Ni %
   const domeA = stockpiles.find((s) => s.id === "DOME-A");
   const domeB = stockpiles.find((s) => s.id === "DOME-B");
   const blendedNi =
@@ -318,12 +381,47 @@ export const MineProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsPitHalted((prev) => !prev);
   };
 
+  const fireBlastSequence = () => {
+    setBlastHoles((prev) => prev.map((h) => ({ ...h, isFired: true })));
+    setBlastConfig((prev) => ({ ...prev, isBlasted: true }));
+  };
+
+  const resetBlastPattern = () => {
+    setBlastHoles(INITIAL_HOLES);
+    setBlastConfig(INITIAL_BLAST_CONFIG);
+  };
+
+  const updateCoaParameters = (
+    wetTons: number,
+    niPct: number,
+    mcPct: number,
+    hpmUsd: number
+  ) => {
+    const dryTons = Math.round(wetTons * (1 - mcPct / 100));
+    const grossVal = Math.round(dryTons * hpmUsd);
+    const usdToIdr = 15500;
+    const royaltyIdr = Math.round(grossVal * 0.10 * usdToIdr);
+
+    setMinerbaCoa((prev) => ({
+      ...prev,
+      totalWetMetricTons: wetTons,
+      assayNiPct: niPct,
+      moistureContentPct: mcPct,
+      totalDryMetricTons: dryTons,
+      hpmNickelUsdPerDmt: hpmUsd,
+      grossOreValueUsd: grossVal,
+      pnbpRoyaltyPayableIdr: royaltyIdr,
+    }));
+  };
+
   const resetToDefaults = () => {
     setTrucks(INITIAL_TRUCKS);
     setStockpiles(INITIAL_STOCKPILES);
+    setBlastConfig(INITIAL_BLAST_CONFIG);
+    setBlastHoles(INITIAL_HOLES);
+    setMinerbaCoa(INITIAL_MINERBA_COA);
     setIsPitHalted(false);
-    localStorage.removeItem("mine_trucks_v1");
-    localStorage.removeItem("mine_domes_v1");
+    localStorage.clear();
   };
 
   return (
@@ -334,10 +432,16 @@ export const MineProvider: React.FC<{ children: React.ReactNode }> = ({ children
         stockpiles,
         kpis,
         isPitHalted,
+        blastConfig,
+        blastHoles,
+        minerbaCoa,
         reassignDestination,
         toggleTruckMaintenance,
         updateStockpileBlend,
         togglePitEmergencyHalt,
+        fireBlastSequence,
+        resetBlastPattern,
+        updateCoaParameters,
         resetToDefaults,
       }}
     >

@@ -64,3 +64,56 @@ export interface MiningKPIs {
   fleetFuelBurnRateTotalLph: number;
   targetNiBlendFeedPct: number;
 }
+
+// Sprint 3 & 4 Types
+export interface BlastHole {
+  holeId: string;
+  depthM: number;
+  burdenM: number;
+  spacingM: number;
+  stemmingM: number;
+  explosiveKg: number;
+  isFired: boolean;
+  delayMs: number;
+}
+
+export interface BlastPatternConfig {
+  patternId: string;
+  benchLocation: string;
+  totalHoles: number;
+  powderFactorKgPerBcm: number;
+  bulkExplosiveType: string;
+  estimatedVolumeBcm: number;
+  vibrationPpvLimitMmSec: number;
+  calculatedPpvMmSec: number;
+  airblastDbLimit: number;
+  calculatedAirblastDb: number;
+  isBlasted: boolean;
+}
+
+export interface MinerbaCoaCertificate {
+  certificateNo: string;
+  esdmPermitIupNo: string;
+  concessionName: string;
+  surveyorCompany: string; // PT Sucofindo / PT Carsurin
+  lotNumber: string;
+  vesselBargeName: string;
+  samplingDate: string;
+  totalWetMetricTons: number;
+  moistureContentPct: number;
+  totalDryMetricTons: number;
+  assayNiPct: number;
+  assayFePct: number;
+  assayCoPct: number;
+  assaySio2Pct: number;
+  assayMgoPct: number;
+  silicaMagnesiaRatio: number;
+  hpmNickelUsdPerDmt: number;      // Harga Patokan Mineral ESDM
+  grossOreValueUsd: number;
+  pnbpRoyaltyRatePct: number;      // 10% PNBP Royalti Minerba
+  pnbpRoyaltyPayableIdr: number;
+  chiefSurveyorName: string;
+  kttMiningManagerName: string;
+  buyerInspectorName: string;
+  qrVerificationHash: string;
+}
